@@ -1,0 +1,208 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  background: #000000;
+  font-family: system-ui, sans-serif;
+  overflow: hidden;
+}
+
+.book-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ─── Book ─────────────────────────────────────────────── */
+.book {
+  position: relative;
+  width: 504px;
+  height: 768px;
+  background: transparent;
+  box-shadow:
+    0 4px 6px rgba(0,0,0,0.07),
+    0 10px 20px rgba(0,0,0,0.12),
+    0 30px 60px rgba(0,0,0,0.18);
+
+  perspective: 2800px;
+  perspective-origin: 50% 50%;
+
+  cursor: none;
+  overflow: visible;
+  transition: width 0.5s cubic-bezier(0.645, 0.045, 0.355, 1.000);
+}
+
+.book.is-spread {
+  width: 1008px;
+}
+
+/* ─── Static page slots ─────────────────────────────────── */
+.page-slot {
+  position: absolute;
+  top: 0;
+  width: 504px;
+  height: 768px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.page-slot.left  { left: 0; }
+.page-slot.right { left: 0; }
+.book.is-spread .page-slot.right { left: 504px; }
+
+/* ─── Flip page wrapper ─────────────────────────────────── */
+.flip-page {
+  position: absolute;
+  top: 0;
+  width: 504px;
+  height: 768px;
+  display: none;
+  z-index: 100;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.flip-page.flip-right {
+  left: 504px;
+  transform-origin: left top; /* top-left stays fixed, bottom-right peels */
+}
+
+.flip-page.flip-left {
+  left: 0;
+  transform-origin: right top; /* top-right stays fixed, bottom-left peels */
+}
+
+/* ─── Front and back faces ──────────────────────────────── */
+.flip-front,
+.flip-back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  overflow: hidden;
+}
+
+.flip-back {
+  transform: rotateY(180deg);
+}
+
+/* ─── Shade & shine overlays ────────────────────────────── */
+.shade,
+.shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.shade {
+  background: linear-gradient(
+    to right,
+    rgba(0,0,0,0.10),
+    rgba(0,0,0,0.04) 35%,
+    rgba(0,0,0,0.0)  70%
+  );
+}
+
+.shine {
+  background: linear-gradient(
+    to right,
+    rgba(255,255,255,0.0)  0%,
+    rgba(255,255,255,0.06) 35%,
+    rgba(255,255,255,0.0)  70%
+  );
+}
+
+/* ─── Curl overlays (the peel triangle) ─────────────────── */
+.curl {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  --curlSize: 0%;
+  filter: drop-shadow(0 18px 14px rgba(0,0,0,0.3));
+}
+
+.curl--right{
+  clip-path: polygon(
+    100% 100%,
+    calc(100% - var(--curlSize)) 100%,
+    100% calc(100% - var(--curlSize))
+  );
+}
+
+.curl--left{
+  clip-path: polygon(
+    0% 100%,
+    var(--curlSize) 100%,
+    0% calc(100% - var(--curlSize))
+  );
+}
+
+/* ─── Hit areas ─────────────────────────────────────────── */
+.hitArea {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  z-index: 999;
+  cursor: none;
+}
+
+.hitArea--left  { left: 0; }
+.hitArea--right { right: 0; }
+
+/* ─── Custom cursor ─────────────────────────────────────── */
+.customCursor {
+  position: fixed;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(122, 252, 255, 0.7);
+  box-shadow:
+    0 0 12px 6px rgba(122, 252, 255, 0.8),
+    0 0 28px 10px rgba(122, 252, 255, 0.4);
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+@media (max-width: 500px) {
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .book-wrapper {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* Scale cover (504px × 0.46 = ~232px, fits phone) */
+  .book {
+    transform-origin: center center;
+    transform: scale(0.46);
+    margin: -210px -138px; /* collapse layout space: (504 * (1-0.46)) / 2 */
+  }
+
+  /* Scale spread (1008px × 0.46 = ~464px, fits phone) */
+  .book.is-spread {
+    transform: scale(0.46);
+    margin: -210px -272px; /* collapse layout space: (1008 * (1-0.46)) / 2 */
+  }
+}

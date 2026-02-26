@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Arizona Serif</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    @font-face {
+      font-family: "PangramRounded";
+      src: url("pangramrounded/PPPangramSansRounded-Bold.otf") format("opentype");
+      font-weight: bold;
+      font-style: normal;
+    }
+    div, h1, p, h2 {
+      font-family: "PangramRounded", sans-serif;
+    }
+  </style>
+</head>
+<body>
+
+<div class="book-wrapper">
+  <div class="book" id="book">
+
+    <div class="page-slot left"  id="leftSlot"></div>
+    <div class="page-slot right" id="rightSlot"></div>
+
+    <div class="flip-page" id="flipPage">
+
+      <!-- Front face: the page being turned, with curl overlays on top -->
+      <div class="flip-front" id="flipFront">
+        <div class="shade"      id="shade"></div>
+        <div class="shine"      id="shine"></div>
+        <div class="curl curl--right" id="curlRight"></div>
+        <div class="curl curl--left"  id="curlLeft"></div>
+      </div>
+
+      <!-- Back face: the page being revealed -->
+      <div class="flip-back" id="flipBack"></div>
+
+    </div>
+
+    <div class="hitArea hitArea--left"  id="hitLeft"></div>
+    <div class="hitArea hitArea--right" id="hitRight"></div>
+
+  </div>
+
+  <div class="customCursor" id="customCursor" aria-hidden="true"></div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
