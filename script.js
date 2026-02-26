@@ -360,24 +360,25 @@ hitLeft.addEventListener('click', (e) => {
 setSlot(leftSlot,  null);
 setSlot(rightSlot, 1);
 
-// ─── Cursor ───────────────────────────────────────────────
-book.addEventListener('mousemove', (e) => {
-  customCursor.style.left = e.clientX + 'px';
-  customCursor.style.top  = e.clientY + 'px';
-});
-book.addEventListener('mouseenter', () => customCursor.style.opacity = '1');
-book.addEventListener('mouseleave', () => customCursor.style.opacity = '0');
+function moveCursor(x, y) {
+  customCursor.style.transform = `translate3d(calc(${x}px - 50%), calc(${y}px - 50%), 0)`;
+}
 
-// Touch — listen on document so finger can move anywhere
+// Mouse
+document.addEventListener('mousemove', (e) => {
+  customCursor.style.opacity = '1';
+  moveCursor(e.clientX, e.clientY);
+});
+document.addEventListener('mouseleave', () => customCursor.style.opacity = '0');
+
+// Touch
 document.addEventListener('touchstart', (e) => {
   customCursor.style.opacity = '1';
-  customCursor.style.left = e.touches[0].clientX + 'px';
-  customCursor.style.top  = e.touches[0].clientY + 'px';
+  moveCursor(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: true });
 
 document.addEventListener('touchmove', (e) => {
-  customCursor.style.left = e.touches[0].clientX + 'px';
-  customCursor.style.top  = e.touches[0].clientY + 'px';
+  moveCursor(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: true });
 
 document.addEventListener('touchend', () => {

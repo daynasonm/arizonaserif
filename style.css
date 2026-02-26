@@ -164,6 +164,8 @@ body {
 /* ─── Custom cursor ─────────────────────────────────────── */
 .customCursor {
   position: fixed;
+  top: 0;
+  left: 0;
   width: 28px;
   height: 28px;
   border-radius: 999px;
@@ -173,9 +175,9 @@ body {
     0 0 28px 10px rgba(122, 252, 255, 0.4);
   pointer-events: none;
   z-index: 9999;
-  transform: translate(-50%, -50%);
   opacity: 0;
   transition: opacity 120ms ease;
+  will-change: transform;
 }
 
 @media (max-width: 500px) {
