@@ -367,3 +367,19 @@ book.addEventListener('mousemove', (e) => {
 });
 book.addEventListener('mouseenter', () => customCursor.style.opacity = '1');
 book.addEventListener('mouseleave', () => customCursor.style.opacity = '0');
+
+// Touch
+book.addEventListener('touchstart', (e) => {
+  customCursor.style.opacity = '1';
+  customCursor.style.left = e.touches[0].clientX + 'px';
+  customCursor.style.top  = e.touches[0].clientY + 'px';
+}, { passive: true });
+
+book.addEventListener('touchmove', (e) => {
+  customCursor.style.left = e.touches[0].clientX + 'px';
+  customCursor.style.top  = e.touches[0].clientY + 'px';
+}, { passive: true });
+
+book.addEventListener('touchend', () => {
+  customCursor.style.opacity = '0';
+}, { passive: true });
