@@ -38,7 +38,14 @@ const customCursor = document.getElementById('customCursor');
 let currentState = 0;
 let isAnimating  = false;
 const DURATION   = 650; // ms for auto-complete flip
-const REVEAL_STATE_PROGRESS = 0;
+const REVEAL_STATE_PROGRESS = 0.5;
+const pageTurnSounds = [new Audio('pageturningsound.mp4'), new Audio('pageturningsound.mp4')];
+let pageTurnSoundIndex = 0;
+
+pageTurnSounds.forEach(sound => {
+  sound.preload = 'auto';
+  sound.volume = 0.75;
+});
 
 // ─── Helpers ──────────────────────────────────────────────
 function setSlot(slot, pageNum) {
@@ -57,10 +64,32 @@ function pageFlex(progress) {
   return Math.sin(Math.PI * clamp(progress, 0, 1));
 }
 
+function playPageTurnSound() {
+  const sound = pageTurnSounds[pageTurnSoundIndex];
+  pageTurnSoundIndex = (pageTurnSoundIndex + 1) % pageTurnSounds.length;
+  sound.pause();
+  sound.currentTime = 0;
+
+  const playPromise = sound.play();
+  if (playPromise) playPromise.catch(() => {});
+}
+
+function resetToCover() {
+  if (isAnimating) return;
+  isAnimating = true;
+  playPageTurnSound();
+  currentState = 0;
+  renderState(currentState, true);
+  isAnimating = false;
+}
+
 function setBookSpread(isSpread, instant = false) {
   if (instant) book.style.transition = 'none';
   book.classList.toggle('is-spread', isSpread);
-  if (instant) requestAnimationFrame(() => { book.style.transition = ''; });
+  if (instant) {
+    void book.offsetWidth;
+    book.style.transition = '';
+  }
 }
 
 function renderState(stateIndex, instantShape = false) {
@@ -78,9 +107,20 @@ function setSlotsForState(stateIndex) {
 function setTurnSlots(dir, from, to, progress) {
   const showTargetSpread = progress >= REVEAL_STATE_PROGRESS;
 
+  // Covers open onto a full spread immediately, so the first click resolves to
+  // spread 1 instead of leaving the old cover sitting in the right slot.
   if (!from.left && to.left) {
     setSlot(leftSlot, to.left);
     setSlot(rightSlot, to.right);
+    return;
+  }
+
+  // When a spread closes into a single cover/back page, keep the current spread
+  // visible while the turn is still in motion. The single cover appears only
+  // after the flip completes.
+  if (from.left && !to.left) {
+    setSlot(leftSlot, from.left);
+    setSlot(rightSlot, from.right);
     return;
   }
 
@@ -156,6 +196,14 @@ function setPageFlex(dir, progress, deg) {
   flipPage.style.clipPath = dir === 'right'
     ? `polygon(0 0, ${100 - topPull}% 0, ${100 - waistPull}% 50%, ${100 - bottomPull}% 100%, 0 100%)`
     : `polygon(${topPull}% 0, 100% 0, 100% 100%, ${bottomPull}% 100%, ${waistPull}% 50%)`;
+
+  setFlipFaceForProgress(progress);
+}
+
+function setFlipFaceForProgress(progress) {
+  const showNextFace = progress >= REVEAL_STATE_PROGRESS;
+  flipFront.style.opacity = showNextFace ? '0' : '1';
+  flipBack.style.opacity = showNextFace ? '1' : '0';
 }
 
 function clearPageFlex() {
@@ -174,6 +222,8 @@ function clearPageFlex() {
   flipPage.style.removeProperty('--ridgeLight');
   flipPage.style.removeProperty('--ridgeWarm');
   flipPage.style.clipPath = '';
+  flipFront.style.opacity = '';
+  flipBack.style.opacity = '';
 }
 
 function clearCurl() {
@@ -198,6 +248,7 @@ function setupFlip(dir, fromPage, toPage, xPos) {
   flipPage.style.transition = 'none';
   flipPage.style.display = 'block';
   clearPageFlex();
+  setFlipFaceForProgress(0);
   clearCurl();
 }
 
@@ -238,53 +289,38 @@ function animateFlip(startDeg, endDeg, curlDir, onComplete, onProgress) {
 // ─── Forward flip ──────────────────────────────────────────
 function flipForward() {
   if (isAnimating) return;
-  isAnimating = true;
-
-  // Last page → loop back to cover
-  if (currentState === states.length - 1) {
-    book.style.transition = 'none';
-    book.classList.remove('is-spread');
-    setSlot(leftSlot,  null);
-    setSlot(rightSlot, states[0].right);
-    currentState = 0;
-    isAnimating = false;
-    requestAnimationFrame(() => { book.style.transition = ''; });
+  if (currentState >= states.length - 1) {
+    resetToCover();
     return;
   }
+
+  isAnimating = true;
+  playPageTurnSound();
 
   const to   = states[currentState + 1];
   const from = states[currentState];
 
-  // Cover → first spread
+  // Cover → first spread. Do not draw the old cover as a flat right-page
+  // overlay; the next settled view is the blank/table-of-contents spread.
   if (currentState === 0) {
-    setBookSpread(true);
-    setTurnSlots('forward', from, to, 1);
-    setupFlip('right', from.right, to.right, 504);
-
-    animateFlip(0, -180, 'right', () => {
-      currentState = 1;
-      renderState(currentState);
-      isAnimating = false;
-    }, progress => setTurnSlots('forward', from, to, progress));
+    currentState = 1;
+    renderState(currentState, true);
+    isAnimating = false;
     return;
   }
 
-  // Last spread → back cover
+  // Last spread → back cover. Match the opening edge: do not draw the credits
+  // page as the right half of a spread before it becomes a single cover.
   if (currentState === states.length - 2) {
-    setTurnSlots('forward', from, to, 1);
-    setupFlip('right', from.right, to.right, 504);
-
-    animateFlip(0, -180, 'right', () => {
-      currentState = states.length - 1;
-      renderState(currentState);
-      isAnimating = false;
-    }, progress => setTurnSlots('forward', from, to, progress));
+    currentState = states.length - 1;
+    renderState(currentState, true);
+    isAnimating = false;
     return;
   }
 
   // Normal spread → spread flip (right page peels to left)
-  setTurnSlots('forward', from, to, 1);
-  setupFlip('right', from.right, to.right, 504);
+  setTurnSlots('forward', from, to, 0);
+  setupFlip('right', from.right, to.left, 504);
 
   animateFlip(0, -180, 'right', () => {
     currentState++;
@@ -297,15 +333,16 @@ function flipForward() {
 function flipBackward() {
   if (isAnimating || currentState <= 0) return;
   isAnimating = true;
+  playPageTurnSound();
 
   const to   = states[currentState - 1];
   const from = states[currentState];
 
   // Back cover → last spread
   if (currentState === states.length - 1) {
-    setBookSpread(true);
-    setTurnSlots('backward', from, to, 1);
-    setupFlip('left', from.right, to.left, 0);
+    setBookSpread(true, true);
+    setTurnSlots('backward', from, to, 0);
+    setupFlip('left', from.right, to.right, 0);
 
     animateFlip(0, 180, 'left', () => {
       currentState = states.length - 2;
@@ -317,19 +354,19 @@ function flipBackward() {
 
   // First spread → cover
   if (currentState === 1) {
-    setTurnSlots('backward', from, to, 1);
+    setTurnSlots('backward', from, to, 0);
     setupFlip('left', from.left, to.right, 0);
 
     animateFlip(0, 180, 'left', () => {
       currentState = 0;
-      renderState(currentState);
+      renderState(currentState, true);
       isAnimating = false;
     }, progress => setTurnSlots('backward', from, to, progress));
     return;
   }
 
   // Normal spread → spread flip (left page peels to right)
-  setTurnSlots('backward', from, to, 1);
+  setTurnSlots('backward', from, to, 0);
   setupFlip('left', from.left, to.right, 0);
 
   animateFlip(0, 180, 'left', () => {
@@ -358,13 +395,14 @@ book.addEventListener('pointerdown', (e) => {
 
   // Only allow drag on the outer thirds of the book.
   if (currentState === 0) {
-    if (ratio > 0.5) dragDir = 'forward';
-    else return;
+    return;
   } else if (currentState === states.length - 1) {
-    if (ratio < 0.5) dragDir = 'backward';
-    else return;
+    return;
   } else if (isSpread) {
-    if (ratio > 0.75) dragDir = 'forward';
+    if (ratio > 0.75) {
+      if (currentState === states.length - 2) return;
+      dragDir = 'forward';
+    }
     else if (ratio < 0.25) dragDir = 'backward';
     else return;
   }
@@ -379,25 +417,20 @@ book.addEventListener('pointerdown', (e) => {
     : states[currentState - 1];
   dragFromState = from;
   dragToState = to;
-  setTurnSlots(dragDir, from, to, 1);
+  setTurnSlots(dragDir, from, to, 0);
 
-  if (dragDir === 'forward' && currentState === 0) {
-    dragFromPage = from.right;
-    dragToPage   = to.right;
-    setBookSpread(true);
-    setupFlip('right', dragFromPage, dragToPage, 504);
-  } else if (dragDir === 'forward' && currentState === states.length - 2) {
+  if (dragDir === 'forward' && currentState === states.length - 2) {
     dragFromPage = from.right;
     dragToPage   = to.right;
     setupFlip('right', dragFromPage, dragToPage, 504);
   } else if (dragDir === 'forward') {
     dragFromPage = from.right;
-    dragToPage   = to.right;
+    dragToPage   = to.left;
     setupFlip('right', dragFromPage, dragToPage, 504);
   } else if (currentState === states.length - 1) {
     dragFromPage = from.right;
-    dragToPage   = to.left;
-    setBookSpread(true);
+    dragToPage   = to.right;
+    setBookSpread(true, true);
     setupFlip('left', dragFromPage, dragToPage, 0);
   } else if (currentState === 1) {
     dragFromPage = from.left;
@@ -455,6 +488,8 @@ book.addEventListener('pointerup', (e) => {
   }
 
   const shouldTurn = progress > 0.35;
+  if (shouldTurn) playPageTurnSound();
+
   const currentDeg = dragDir === 'forward' ? -180 * progress : 180 * progress;
   const targetDeg  = shouldTurn
     ? (dragDir === 'forward' ? -180 : 180)
@@ -468,7 +503,7 @@ book.addEventListener('pointerup', (e) => {
         currentState--;
       }
     }
-    renderState(currentState);
+    renderState(currentState, !states[currentState].left);
     isAnimating = false;
     dragDir = null;
     dragFromState = null;
@@ -480,7 +515,7 @@ book.addEventListener('pointercancel', () => {
   if (!dragging) return;
   dragging = false;
   animateFlip(0, 0, dragDir === 'forward' ? 'right' : 'left', () => {
-    renderState(currentState);
+    renderState(currentState, !states[currentState].left);
     isAnimating = false;
     dragDir = null;
     dragFromState = null;
@@ -494,7 +529,9 @@ hitRight.addEventListener('click', (e) => {
 });
 
 hitLeft.addEventListener('click', (e) => {
-  if (!dragging) flipBackward();
+  if (dragging) return;
+  if (currentState === states.length - 1) resetToCover();
+  else flipBackward();
 });
 
 // ─── Init ─────────────────────────────────────────────────
